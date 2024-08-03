@@ -5,25 +5,37 @@ const cors = require('cors');
 
 const app = express();
 const isDev = app.settings.env === 'development'
-const URL = isDev ? 'http://localhost:3000' : 'https://sketchbook-sigma.vercel.app'
-app.use(cors({origin: URL}))
+// const URL = isDev ? 'http://localhost:3000' : 'https://sketchbook-sigma.vercel.app'
+app.use(cors({origin: "*"}))
 const httpServer = createServer(app);
-const io = new Server(httpServer, { cors: URL });
+const io = new Server(httpServer, {
+  cors: {
+    origin: "*", // or specific domain if known
+  },});
 
-io.on("connection", (socket) => {
-  console.log("server connected")
+  io.on('connection', (socket) => {
+    console.log("server is connected")
 
-  socket.on('beginPath', (arg) => {
-    socket.broadcast.emit('beginPath', arg)
-  })
+    socket.on('join-room', (roomId, userId) => {//userId is peerID i.e SDP
+        console.log(`a new user ${userId} joined room ${roomId}`)
+        socket.join(roomId)
+        socket.broadcast.to(roomId).emit('user-connected', userId)//broadcast to all users except the currrent one
+    })
 
-  socket.on('drawLine', (arg) => {
-    socket.broadcast.emit('drawLine', arg)
-  })
+    socket.on('user-toggle-audio', (userId, roomId) => {
+        socket.join(roomId)
+        socket.broadcast.to(roomId).emit('user-toggle-audio', userId)
+    })
 
-  socket.on('changeConfig', (arg) => {
-    socket.broadcast.emit('changeConfig', arg)
-  })
-});
+    socket.on('user-toggle-video', (userId, roomId) => {
+        socket.join(roomId)
+        socket.broadcast.to(roomId).emit('user-toggle-video', userId)
+    })
+
+    socket.on('user-leave', (userId, roomId) => {
+        socket.join(roomId)
+        socket.broadcast.to(roomId).emit('user-leave', userId)
+    })
+})
 
 httpServer.listen(5000);
